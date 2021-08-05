@@ -1,49 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"log"
+	"net/http"
 )
 
-type Saiyan struct {
-	Name  string
-	Power int
+// Define a home handler function which writes a byte slice containing
+// "Hello from Snippetbox" as the response body.
+func home(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Hello from Snippetbox"))
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		os.Exit(1)
-	}
-	fmt.Println("It's over", os.Args[1])
+	// Use the http.NewServeMux() function to initialize a new servemux, then
+	// register the home function as the handler for the "/" URL pattern.
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", home)
 
-	for i := 0; i < 2; i++ {
-		fmt.Println(os.Args[i])
-	}
-
-	log("test")
-	fmt.Println(add(2, 3))
-
-	val, bol := power("test")
-	fmt.Println(val)
-	fmt.Println(bol)
-
-	goku := Saiyan{
-		Name:  "Goku",
-		Power: 9000,
-	}
-
-	fmt.Println(goku.Name)
-	fmt.Println(goku.Power)
-}
-
-func log(message string) {
-	fmt.Println(message)
-}
-
-func add(a int, b int) int {
-	return a + b
-}
-
-func power(name string) (string, bool) {
-	return name, true
+	// Use the http.ListenAndServe() function to start a new web server. We pass in
+	// two parameters: the TCP network address to listen on (in this case ":4000")
+	// and the servemux we just created. If http.ListenAndServe() returns an error
+	// we use the log.Fatal() function to log the error message and exit. Note
+	// that any error returned by http.ListenAndServe() is always non-nil.
+	log.Println("Starting server on :4000")
+	err := http.ListenAndServe(":4000", mux)
+	log.Fatal(err)
 }
