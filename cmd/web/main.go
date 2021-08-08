@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"log"
 	"net/http"
 	"os"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // Define an application struct to hold the application-wide dependencies for the
@@ -28,10 +31,6 @@ func main() {
 	// additional information to include (local date and time). Note that the flags
 	// are joined using the bitwise OR operator |.
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
-
-	// Create a logger for writing error messages in the same way, but use stderr as
-	// the destination and use the log.Lshortfile flag to include the relevant
-	// file name and line number.
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	// Initialize a new instance of application containing the dependencies.
@@ -46,7 +45,20 @@ func main() {
 	cfg := new(Config)
 	flag.StringVar(&cfg.Addr, "addr", ":4000", "HTTP network address")
 	flag.StringVar(&cfg.StaticDir, "static-dir", "./ui/static", "Path to static assets")
+	dsn := flag.String("dsn", "web:pass@/snippetbox?parseTime=true", "MySQL data source name")
 	flag.Parse()
+
+	// To keep the main() function tidy I've put the code for creating a connection
+	// pool into the separate openDB() function below. We pass openDB() the DSN
+	// from the command-line flag.
+	db, err := openDB(*dsn)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	// We also defer a call to db.Close(), so that the connection pool is closed
+	// before the main() function exits.
+	defer db.Close()
 
 	srv := &http.Server{
 		Addr:     cfg.Addr,
@@ -59,6 +71,19 @@ func main() {
 	// prefix it with the * symbol) before using it. Note that we're using the
 	// log.Printf() function to interpolate the address with the log message.
 	infoLog.Printf("Starting server on %s", cfg.Addr)
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	errorLog.Fatal(err)
+}
+
+// The openDB() function wraps sql.Open() and returns a sql.DB connection pool
+// for a given DSN.
+func openDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+	return db, nil
 }
